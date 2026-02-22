@@ -57,6 +57,16 @@ The `◊(foo.bar)` parenthesized form always resolves as a file (`foo.bar.dryck`
 
 Name extraction scans the current line for `◊`-tokens and checks whether the cursor falls within one. All three function forms are handled.
 
+### Python symbol resolution details
+
+Top-level functions (`SymbolKind.Function`) are included unconditionally. Methods (`SymbolKind.Method`) are only included if their enclosing class is a subclass of `appeldryck.Context` (transitive inheritance included).
+
+**Finding the enclosing class**: `containerName` from the workspace symbol result is used when present (Pylance populates it). When absent (ty does not), `vscode.executeDocumentSymbolProvider` is called on the file and the class whose range contains the method's line is used instead.
+
+**Checking the inheritance chain**: Two paths depending on what the active Python extension supports:
+- **Type hierarchy** (`vscode.prepareTypeHierarchy` / `vscode.provideTypeHierarchySupertypes`): used when available (Pylance). BFS through supertypes; any node with `name === 'Context'` in a file whose path includes `appeldryck` is a match.
+- **Go To Definition chain** (`vscode.executeDefinitionProvider`): fallback when type hierarchy returns empty (ty). Reads the `class Foo(bases):` line, positions on each base class name, calls Go To Definition, and recurses. Terminates via a visited set.
+
 ## Debugging tips
 
 - Use **Developer: Inspect Editor Tokens and Scopes** to verify what scopes are assigned.

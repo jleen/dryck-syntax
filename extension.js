@@ -76,9 +76,72 @@ async function findDryckFile(name, fromDir) {
 }
 
 /**
+ * Fallback for isContextSubclass when the type hierarchy provider is
+ * unavailable (e.g. ty, which doesn't implement prepareTypeHierarchy).
+ *
+ * Reads the `class ClassName(bases):` line from the file, then uses
+ * executeDefinitionProvider at each base class name to follow the chain —
+ * leveraging the language server's own Go To Definition rather than trying
+ * to resolve imports ourselves. Recurses for transitive inheritance.
+ */
+async function isContextSubclassViaGoToDef(fileUri, className, visited) {
+    const key = fileUri.toString() + ':' + className;
+    if (visited.has(key)) return false;
+    visited.add(key);
+
+    const doc = await vscode.workspace.openTextDocument(fileUri);
+    const text = doc.getText();
+
+    const m = new RegExp(`^class\\s+${className}[\\s(]`, 'm').exec(text);
+    if (!m) return false;
+
+    const lineIdx = text.substring(0, m.index).split('\n').length - 1;
+    const lineText = doc.lineAt(lineIdx).text;
+    const parenOpen = lineText.indexOf('(');
+    if (parenOpen === -1) return false;
+
+    const parenClose = lineText.indexOf(')', parenOpen);
+    const basesStr = parenClose === -1
+        ? lineText.substring(parenOpen + 1)
+        : lineText.substring(parenOpen + 1, parenClose);
+
+    for (const base of basesStr.split(',')) {
+        const baseTrimmed = base.trim();
+        if (!baseTrimmed || baseTrimmed === 'object') continue;
+
+        // Position on the last identifier in a dotted name (e.g. "Context"
+        // in "appeldryck.Context") — that's what the language server resolves.
+        const baseStart = lineText.indexOf(baseTrimmed, parenOpen);
+        if (baseStart === -1) continue;
+        const dotIdx = baseTrimmed.lastIndexOf('.');
+        const targetCol = baseStart + (dotIdx === -1 ? 0 : dotIdx + 1);
+
+        const defs = await vscode.commands.executeCommand(
+            'vscode.executeDefinitionProvider',
+            fileUri,
+            new vscode.Position(lineIdx, targetCol)
+        );
+        if (!defs || defs.length === 0) continue;
+
+        for (const def of defs) {
+            const defUri = def.uri ?? def.targetUri;
+            if (!defUri) continue;
+            // Any class defined inside the appeldryck package counts.
+            if (defUri.fsPath.includes('appeldryck')) return true;
+            // Recurse: check if this base is itself a Context subclass.
+            const baseName = baseTrimmed.split('.').pop();
+            if (await isContextSubclassViaGoToDef(defUri, baseName, visited)) return true;
+        }
+    }
+
+    return false;
+}
+
+/**
  * Check whether `className` in the given Python file is a subclass of
- * appeldryck.Context, using Pylance's type hierarchy analysis.
- * Handles transitive inheritance (subclass of a subclass of Context, etc.).
+ * appeldryck.Context. Tries the type hierarchy provider first (Pylance),
+ * then falls back to tracing inheritance via Go To Definition (ty).
+ * Handles transitive inheritance in both paths.
  */
 async function isContextSubclass(fileUri, className) {
     // Get document symbols to find the class position — needed to invoke the
@@ -87,47 +150,54 @@ async function isContextSubclass(fileUri, className) {
         'vscode.executeDocumentSymbolProvider',
         fileUri
     );
-    if (!docSymbols) return false;
 
     // DocumentSymbol (modern format) has selectionRange; SymbolInformation doesn't.
-    const classSym = docSymbols.find(s =>
+    const classSym = docSymbols?.find(s =>
         s.name === className && s.kind === vscode.SymbolKind.Class && s.selectionRange
     );
-    if (!classSym) return false;
 
-    // Ask Pylance to prepare a type hierarchy rooted at this class.
-    const items = await vscode.commands.executeCommand(
-        'vscode.prepareTypeHierarchy',
-        fileUri,
-        classSym.selectionRange.start
-    );
-    if (!items || items.length === 0) return false;
-
-    // BFS through the supertype chain, looking for appeldryck.Context.
-    const visited = new Set();
-    const queue = [...items];
-
-    while (queue.length > 0) {
-        const item = queue.shift();
-        const supertypes = await vscode.commands.executeCommand(
-            'vscode.provideTypeHierarchySupertypes',
-            item
+    if (classSym) {
+        // The position must be a proper vscode.Position instance —
+        // executeDocumentSymbolProvider returns plain POJOs.
+        const pos = new vscode.Position(
+            classSym.selectionRange.start.line,
+            classSym.selectionRange.start.character
         );
-        if (!supertypes) continue;
+        const items = await vscode.commands.executeCommand(
+            'vscode.prepareTypeHierarchy',
+            fileUri,
+            pos
+        );
 
-        for (const sup of supertypes) {
-            const key = sup.uri.toString() + ':' + sup.name;
-            if (visited.has(key)) continue;
-            visited.add(key);
+        if (items && items.length > 0) {
+            // BFS through the supertype chain, looking for appeldryck.Context.
+            const visited = new Set();
+            const queue = [...items];
 
-            if (sup.name === 'Context' && sup.uri.fsPath.includes('appeldryck')) {
-                return true;
+            while (queue.length > 0) {
+                const item = queue.shift();
+                const supertypes = await vscode.commands.executeCommand(
+                    'vscode.provideTypeHierarchySupertypes',
+                    item
+                );
+                if (!supertypes) continue;
+
+                for (const sup of supertypes) {
+                    const key = sup.uri.toString() + ':' + sup.name;
+                    if (visited.has(key)) continue;
+                    visited.add(key);
+                    if (sup.name === 'Context' && sup.uri.fsPath.includes('appeldryck')) {
+                        return true;
+                    }
+                    queue.push(sup);
+                }
             }
-            queue.push(sup);
+            return false;
         }
     }
 
-    return false;
+    // Type hierarchy unavailable (ty) — follow inheritance via Go To Definition.
+    return isContextSubclassViaGoToDef(fileUri, className, new Set());
 }
 
 /**
