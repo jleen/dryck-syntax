@@ -76,8 +76,89 @@ async function findDryckFile(name, fromDir) {
 }
 
 /**
+ * Check whether `className` in the given Python file is a subclass of
+ * appeldryck.Context, using Pylance's type hierarchy analysis.
+ * Handles transitive inheritance (subclass of a subclass of Context, etc.).
+ */
+async function isContextSubclass(fileUri, className) {
+    // Get document symbols to find the class position — needed to invoke the
+    // type hierarchy provider, which works on a location rather than a name.
+    const docSymbols = await vscode.commands.executeCommand(
+        'vscode.executeDocumentSymbolProvider',
+        fileUri
+    );
+    if (!docSymbols) return false;
+
+    // DocumentSymbol (modern format) has selectionRange; SymbolInformation doesn't.
+    const classSym = docSymbols.find(s =>
+        s.name === className && s.kind === vscode.SymbolKind.Class && s.selectionRange
+    );
+    if (!classSym) return false;
+
+    // Ask Pylance to prepare a type hierarchy rooted at this class.
+    const items = await vscode.commands.executeCommand(
+        'vscode.prepareTypeHierarchy',
+        fileUri,
+        classSym.selectionRange.start
+    );
+    if (!items || items.length === 0) return false;
+
+    // BFS through the supertype chain, looking for appeldryck.Context.
+    const visited = new Set();
+    const queue = [...items];
+
+    while (queue.length > 0) {
+        const item = queue.shift();
+        const supertypes = await vscode.commands.executeCommand(
+            'vscode.provideTypeHierarchySupertypes',
+            item
+        );
+        if (!supertypes) continue;
+
+        for (const sup of supertypes) {
+            const key = sup.uri.toString() + ':' + sup.name;
+            if (visited.has(key)) continue;
+            visited.add(key);
+
+            if (sup.name === 'Context' && sup.uri.fsPath.includes('appeldryck')) {
+                return true;
+            }
+            queue.push(sup);
+        }
+    }
+
+    return false;
+}
+
+/**
+ * Given a position inside a Python file, return the name of the enclosing
+ * class, or null if the position isn't inside any class.
+ * Uses document symbols (populated by ty/Pylance for the Outline view).
+ */
+async function findContainingClassName(fileUri, position) {
+    const docSymbols = await vscode.commands.executeCommand(
+        'vscode.executeDocumentSymbolProvider',
+        fileUri
+    );
+    if (!docSymbols) return null;
+
+    for (const sym of docSymbols) {
+        if (sym.kind !== vscode.SymbolKind.Class || !sym.range) continue;
+        const r = sym.range;
+        const p = position;
+        // Manual range check — executeCommand results may be plain objects,
+        // not vscode.Range instances with a .contains() method.
+        if (p.line >= r.start.line && p.line <= r.end.line) {
+            return sym.name;
+        }
+    }
+    return null;
+}
+
+/**
  * Fall back to the workspace symbol provider (typically the Python extension)
- * to find `def name` in Python files.
+ * to find `def name` in Python files — either as a top-level function, or as
+ * a method on a subclass of appeldryck.Context.
  */
 async function findPythonDefinition(name) {
     const symbols = await vscode.commands.executeCommand(
@@ -86,9 +167,20 @@ async function findPythonDefinition(name) {
     );
     if (!symbols || symbols.length === 0) return [];
 
-    return symbols
-        .filter(s => s.name === name && s.kind === vscode.SymbolKind.Function)
-        .map(s => new vscode.Location(s.location.uri, s.location.range));
+    const results = [];
+    for (const s of symbols) {
+        if (s.name !== name) continue;
+        if (s.kind === vscode.SymbolKind.Function) {
+            results.push(new vscode.Location(s.location.uri, s.location.range));
+        } else if (s.kind === vscode.SymbolKind.Method) {
+            const className = s.containerName ||
+                await findContainingClassName(s.location.uri, s.location.range.start);
+            if (className && await isContextSubclass(s.location.uri, className)) {
+                results.push(new vscode.Location(s.location.uri, s.location.range));
+            }
+        }
+    }
+    return results;
 }
 
 async function provideDefinition(document, position) {
