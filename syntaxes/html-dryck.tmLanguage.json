@@ -1,0 +1,13 @@
+{
+	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+	"name": "HTML (Dryck)",
+	"patterns": [
+		{
+			"include": "source.dryck"
+		},
+		{
+			"include": "text.html.basic"
+		}
+	],
+	"scopeName": "text.html.dryck"
+}

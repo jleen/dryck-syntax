@@ -10,16 +10,31 @@
         "Programming Languages"
     ],
     "contributes": {
-        "languages": [{
-            "id": "dryck",
-            "aliases": ["Dryck", "dryck"],
-            "extensions": [".dryck"],
-            "configuration": "./language-configuration.json"
-        }],
-        "grammars": [{
-            "language": "dryck",
-            "scopeName": "source.dryck",
-            "path": "./syntaxes/dryck.tmLanguage.json"
-        }]
+        "languages": [
+            {
+                "id": "dryck",
+                "aliases": ["Dryck", "dryck"],
+                "extensions": [".dryck"],
+                "configuration": "./language-configuration.json"
+            },
+            {
+                "id": "html-dryck",
+                "aliases": ["HTML (Dryck)", "html-dryck"],
+                "extensions": [".html.dryck"],
+                "configuration": "./language-configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "dryck",
+                "scopeName": "source.dryck",
+                "path": "./syntaxes/dryck.tmLanguage.json"
+            },
+            {
+                "language": "html-dryck",
+                "scopeName": "text.html.dryck",
+                "path": "./syntaxes/html-dryck.tmLanguage.json"
+            }
+        ]
     }
 }
