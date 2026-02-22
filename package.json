@@ -3,9 +3,14 @@
     "displayName": "Dryck Syntax",
     "description": "",
     "version": "0.5.0",
+    "main": "./extension.js",
     "engines": {
         "vscode": "^1.68.0"
     },
+    "activationEvents": [
+        "onLanguage:dryck",
+        "onLanguage:html-dryck"
+    ],
     "license": "MIT",
     "repository": {
         "type": "git",

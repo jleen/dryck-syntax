@@ -1,13 +1,14 @@
 # dryck-syntax
 
-A VS Code extension providing syntax highlighting for Dryck, a Markdown-like dialect with embedded function call syntax (using the `◊` lozenge character).
+A VS Code extension providing syntax highlighting and navigation for Dryck, a Markdown-like dialect with embedded function call syntax (using the `◊` lozenge character).
 
 ## Files
 
 - `syntaxes/dryck.tmLanguage.json` — main grammar for `.dryck` files (`source.dryck`)
 - `syntaxes/html-dryck.tmLanguage.json` — grammar for `.html.dryck` files (`text.html.dryck`); includes both `source.dryck` and `text.html.basic`
 - `language-configuration.json` — shared language config for both language IDs
-- `package.json` — contributes two language IDs: `dryck` and `html-dryck`
+- `package.json` — contributes two language IDs: `dryck` and `html-dryck`; `"main"` points to `extension.js`
+- `extension.js` — activation code: registers a `DefinitionProvider` for both language IDs
 
 ## Scope naming conventions
 
@@ -43,8 +44,22 @@ Scopes: `keyword.operator.dryck` (◊), `entity.name.function.dryck` (name), `pu
 ### Strings
 `begin`/`end` with `\"`. Escape sequences (`\\.`) get `constant.character.escape.dryck`.
 
+## Go To Definition (extension.js)
+
+`◊name` tokens support F12 navigation. The provider (in `extension.js`) resolves in this order:
+
+1. `<currentDir>/name.dryck` or `<currentDir>/_name.dryck`
+2. `<parentDir>/name.dryck` or `<parentDir>/_name.dryck`
+3. Workspace-wide `**/name.dryck` or `**/_name.dryck` (via `findFiles`)
+4. Python workspace symbols (`vscode.executeWorkspaceSymbolProvider`) — only for simple names (no dots); requires the Python extension to be active
+
+The `◊(foo.bar)` parenthesized form always resolves as a file (`foo.bar.dryck`) and never falls through to Python.
+
+Name extraction scans the current line for `◊`-tokens and checks whether the cursor falls within one. All three function forms are handled.
+
 ## Debugging tips
 
 - Use **Developer: Inspect Editor Tokens and Scopes** to verify what scopes are assigned.
 - Grammar changes usually hot-reload, but **Developer: Reload Window** is needed if something seems stale.
 - If a theme isn't picking up a scope, check whether the theme uses `.markdown` or a generic qualifier.
+- `extension.js` changes require **Reload Window** (or restarting the Extension Development Host) to take effect — there is no hot-reload for activation code.
