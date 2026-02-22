@@ -51,16 +51,18 @@
 			"patterns": [
 				{
 					"name": "markup.list.unnumbered.markdown",
-					"match": "^(\\s*)([-*+])\\s",
-					"captures": {
-						"2": { "name": "punctuation.definition.list.markdown" }
+					"begin": "^(\\s*)([-*+])\\s",
+					"while": "^(?=\\s+\\S)",
+					"beginCaptures": {
+						"2": { "name": "punctuation.definition.list.begin.markdown" }
 					}
 				},
 				{
 					"name": "markup.list.numbered.markdown",
-					"match": "^(\\s*)([0-9]+[.)])\\s",
-					"captures": {
-						"2": { "name": "punctuation.definition.list.markdown" }
+					"begin": "^(\\s*)([0-9]+[.)])\\s",
+					"while": "^(?=\\s+\\S)",
+					"beginCaptures": {
+						"2": { "name": "punctuation.definition.list.begin.markdown" }
 					}
 				}
 			]
