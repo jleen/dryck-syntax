@@ -12,7 +12,7 @@
 			"include": "#emphasis"
 		},
 		{
-			"include": "#keywords"
+			"include": "#functions"
 		},
 		{
 			"include": "#strings"
@@ -87,11 +87,36 @@
 				}
 			]
 		},
-		"keywords": {
-			"patterns": [{
-				"name": "keyword.control.dryck",
-				"match": "◊([a-zA-Z_]*)\\b"
-			}]
+		"functions": {
+			"patterns": [
+				{
+					"comment": "◊(foo.bar) - parenthesized form; dots allowed in name",
+					"match": "(◊)(\\()([a-zA-Z_.][a-zA-Z0-9_.]*)(\\))",
+					"captures": {
+						"1": { "name": "keyword.operator.dryck" },
+						"2": { "name": "punctuation.section.parens.dryck" },
+						"3": { "name": "entity.name.function.dryck" },
+						"4": { "name": "punctuation.section.parens.dryck" }
+					}
+				},
+				{
+					"comment": "◊foo: bar - colon form; rest of line is argument",
+					"match": "(◊)([a-zA-Z_][a-zA-Z0-9_-]*)(:\\s*)(.*)",
+					"captures": {
+						"1": { "name": "keyword.operator.dryck" },
+						"2": { "name": "entity.name.function.dryck" },
+						"3": { "name": "punctuation.separator.dryck" }
+					}
+				},
+				{
+					"comment": "◊foo or ◊foo{...} - basic or brace form",
+					"match": "(◊)([a-zA-Z_][a-zA-Z0-9_-]*)",
+					"captures": {
+						"1": { "name": "keyword.operator.dryck" },
+						"2": { "name": "entity.name.function.dryck" }
+					}
+				}
+			]
 		},
 		"strings": {
 			"name": "string.quoted.double.dryck",
