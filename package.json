@@ -6,6 +6,11 @@
     "engines": {
         "vscode": "^1.68.0"
     },
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/jleen/dryck-syntax"
+    },
     "categories": [
         "Programming Languages"
     ],
