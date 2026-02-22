@@ -3,6 +3,15 @@
 	"name": "Dryck",
 	"patterns": [
 		{
+			"include": "#headings"
+		},
+		{
+			"include": "#list-items"
+		},
+		{
+			"include": "#emphasis"
+		},
+		{
 			"include": "#keywords"
 		},
 		{
@@ -10,6 +19,72 @@
 		}
 	],
 	"repository": {
+		"headings": {
+			"patterns": [
+				{
+					"name": "heading.1.markdown",
+					"match": "^#\\s+.*$"
+				},
+				{
+					"name": "heading.2.markdown",
+					"match": "^##\\s+.*$"
+				},
+				{
+					"name": "heading.3.markdown",
+					"match": "^###\\s+.*$"
+				},
+				{
+					"name": "heading.4.markdown",
+					"match": "^####\\s+.*$"
+				},
+				{
+					"name": "heading.5.markdown",
+					"match": "^#####\\s+.*$"
+				},
+				{
+					"name": "heading.6.markdown",
+					"match": "^######\\s+.*$"
+				}
+			]
+		},
+		"list-items": {
+			"patterns": [
+				{
+					"name": "markup.list.unnumbered.markdown",
+					"match": "^(\\s*)([-*+])\\s",
+					"captures": {
+						"2": { "name": "punctuation.definition.list.markdown" }
+					}
+				},
+				{
+					"name": "markup.list.numbered.markdown",
+					"match": "^(\\s*)([0-9]+[.)])\\s",
+					"captures": {
+						"2": { "name": "punctuation.definition.list.markdown" }
+					}
+				}
+			]
+		},
+		"emphasis": {
+			"patterns": [
+				{
+					"name": "markup.bold.markdown",
+					"match": "(\\*\\*)([^*]+)(\\*\\*)",
+					"captures": {
+						"1": { "name": "punctuation.definition.bold.markdown" },
+						"3": { "name": "punctuation.definition.bold.markdown" }
+					}
+				},
+				{
+					"name": "markup.italic.markdown",
+					"match": "(\\*)([^*]+)(\\*)",
+					"captures": {
+						"1": { "name": "punctuation.definition.italic.markdown" },
+						"3": { "name": "punctuation.definition.italic.markdown" }
+					}
+				}
+			]
+		},
 		"keywords": {
 			"patterns": [{
 				"name": "keyword.control.dryck",
