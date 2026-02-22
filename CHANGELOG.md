@@ -1,9 +1,14 @@
 # Change Log
 
-All notable changes to the "dryck-syntax" extension will be documented in this file.
+## [0.5.0]
 
-Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
+### Markdown elements
 
-## [Unreleased]
+- Headings (levels 1–6)
+- Multiline list items (bulleted and numbered)
+- Bold and italic emphasis
 
-- Initial release
+### Dryck language
+
+- ◊function syntax
+- HTML template syntax (`.html.dryck` files)
